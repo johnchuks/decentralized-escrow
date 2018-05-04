@@ -1,7 +1,7 @@
 var Escrow  = artifacts.require('../contracts/escrow.sol');
 
 contract ('Escrow', function(accounts){
-  var escrowInstance, admin;
+  var escrowInstance, admin, awarder, awardee, contractAddress;
 
   it ('should create and award a contract', function (){
     return Escrow.deployed().then((instance) => {
@@ -25,7 +25,6 @@ contract ('Escrow', function(accounts){
     });
   });
   it ('should deposit funds to the contract address', function () {
-    var awarder, awardee, contractAddress;
     return Escrow.deployed().then((instance) => {
       escrowInstance = instance;
       awarder = accounts[4];
@@ -60,6 +59,17 @@ contract ('Escrow', function(accounts){
       return escrowInstance.balanceOf(escrowInstance.address);
     }).then((balance) => {
       assert.equal(balance.toNumber(), 200, 'updated balance of the contract');
+    });
+   });
+   it('should be able to confirm an existing job', function() {
+     return Escrow.deployed().then((instance) => {
+       escrowInstance = instance
+       return escrowInstance.confirmJobCompleted.call(2, { from: awardee });
+     }).then(assert.fail).catch((error) => {
+      assert(error.message.indexOf('revert') >= 0, 'triggers an error if the owner of the job doesn`t confirm');
+      return escrowInstance.confirmJobCompleted.call(2, { from: awarder });
+    }).then((success) => {
+      assert.equal(success, true);
     })
-  })
-})
+  });
+});
