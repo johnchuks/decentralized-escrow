@@ -12,6 +12,7 @@ contract Escrow {
         bool doesExist;
         bool isDepositedOwner;
         bool isDepositedExecuter;
+        uint256 budget;
     }
     mapping(address => uint) public balanceOf;
     mapping(uint => Job) public jobs;
@@ -56,13 +57,16 @@ contract Escrow {
         require(_awardee != msg.sender);
         require(_contractValue <= creator.balance && _contractValue <= _awardee.balance);
         uint id = numOfJobs += 1;
-        jobs[id] = Job(_title, false, msg.sender, _awardee, true, false, false);
+        jobs[id] = Job(_title, false, msg.sender, _awardee, true, false, false, _contractValue);
         emit Awarded(msg.sender, _awardee, _title);
         return true;
     }
+
+    function accountBalance(address _owner) public view returns (uint256) {
+        return _owner.balance;
+    }
     
     function _depositFund(address _spender, uint256 _value) internal {
-        require(balanceOf[_spender] >= _value);
         balanceOf[this] = add(balanceOf[this], _value);
         balanceOf[_spender] = sub(balanceOf[_spender], _value);
     }
@@ -71,12 +75,17 @@ contract Escrow {
     function deposit(uint256 _value, uint _jobId) public onlyContractParties
     (_jobId) onlyExistingContract(_jobId) returns (bool) {
         address spender = msg.sender;
+        require(_value == jobs[_jobId].budget);
         if(jobs[_jobId].owner == spender) {
+            balanceOf[spender] = add(balanceOf[spender], _value);
+            sub(spender.balance, _value);
             _depositFund(spender, _value);
             jobs[_jobId].isDepositedOwner = true;
             emit Transfer(spender, this, _value);
         }
         else if (jobs[_jobId].executer == spender) {
+            balanceOf[spender] = add(balanceOf[spender], _value);
+            sub(spender.balance, _value);
             _depositFund(spender, _value);
             jobs[_jobId].isDepositedExecuter = true;
             emit Transfer(spender, this, _value);
