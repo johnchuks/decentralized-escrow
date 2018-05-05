@@ -19,7 +19,8 @@ contract Escrow {
     
     event Awarded(address indexed _from, address indexed _to, bytes32 _title);
     event Transfer(address indexed _from, address indexed _to, uint256 _value);
-    event ContractCompleted(address indexed _owner, address indexed _executer, uint256 _jobId);
+    event EscrowCompleted(address indexed _owner, address indexed _executer, uint256 _jobId);
+    event JobComplete(address indexed _owner, bytes32 _title);
     event Cancel(address indexed _from, uint256 _jobId);
     
     function Escrow() public {
@@ -96,23 +97,23 @@ contract Escrow {
     function confirmJobCompleted(uint _jobId) public onlyExistingContract(_jobId) returns (bool success) {
         require(msg.sender == jobs[_jobId].owner);
         jobs[_jobId].isCompleted = true;
+        emit JobComplete(msg.sender, jobs[_jobId].title);
         return true;
         
     }
-    function _completePayment(uint256 _jobId) private {
+    function _completePayment(uint256 _jobId, uint256 _funds) private {
         require(jobs[_jobId].isCompleted == true);
-        uint funds = balanceOf[this];
         address executer = jobs[_jobId].executer;
         jobs[_jobId].doesExist = false;
-        balanceOf[this] = sub(balanceOf[this], funds);
-        balanceOf[executer] = add(balanceOf[executer], funds);
-        emit Transfer(this, executer, funds);
+        balanceOf[this] = sub(balanceOf[this], _funds);
+        balanceOf[executer] = add(balanceOf[executer], _funds);
     }
     
     function completePayment(uint256 _jobId) public returns (bool success) {
         require(msg.sender == jobs[_jobId].owner);
-        _completePayment(_jobId);
-        emit ContractCompleted(msg.sender, jobs[_jobId].executer, _jobId);
+        uint256 funds = balanceOf[this];
+        _completePayment(_jobId, funds);
+        emit Transfer(this, jobs[_jobId].executer, funds);
         return true;
     }
     

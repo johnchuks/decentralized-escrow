@@ -64,12 +64,44 @@ contract ('Escrow', function(accounts){
    it('should be able to confirm an existing job', function() {
      return Escrow.deployed().then((instance) => {
        escrowInstance = instance
-       return escrowInstance.confirmJobCompleted.call(2, { from: awardee });
+       return escrowInstance.confirmJobCompleted(2, { from: awardee });
      }).then(assert.fail).catch((error) => {
       assert(error.message.indexOf('revert') >= 0, 'triggers an error if the owner of the job doesn`t confirm');
+      return escrowInstance.confirmJobCompleted(2, { from: awarder });
+     }).then((receipt) => {
+      assert.equal(receipt.logs.length, 1, 'triggers one event');
+      assert.equal(receipt.logs[0].event, 'JobComplete', 'logs the `JobCompleted` event');
+      assert.equal(receipt.logs[0].args._owner, awarder, 'logs the owner of the job');
+      assert.equal(receipt.logs[0].args._title, '0x46697820627567206f6e20726561637420636f6d706f6e656e74000000000000', 'logs the title of the job completed');
       return escrowInstance.confirmJobCompleted.call(2, { from: awarder });
     }).then((success) => {
       assert.equal(success, true);
-    })
+    });
   });
+  it('Should complete payment after job is completed', function() {
+    return Escrow.deployed().then((instance) => {
+      escrowInstance = instance;
+      return escrowInstance.completePayment.call(2, { from: awardee });
+    }).then(assert.fail).catch((error) => {
+      assert(error.message.indexOf('revert') >= 0, 'triggers an error if an address other than the owner calls function');
+      return escrowInstance.completePayment.call(1, { from: accounts[1] });
+    }).then((receipt) => {
+      return escrowInstance.jobs(1);
+    }).then(assert.fail).catch((error) => {
+      assert(error.message.indexOf('revert') >= 0, 'Job has to be completed before payment');
+      return escrowInstance.completePayment(2, {from: awarder });
+    }).then((receipt) => {
+      assert.equal(receipt.logs.length, 1, 'triggers an event');
+      assert.equal(receipt.logs[0].event, 'Transfer', 'triggers a `Transfer` event');
+      assert.equal(receipt.logs[0].args._from, contractAddress, 'logs the `Transfer` account');
+      assert.equal(receipt.logs[0].args._to, awardee, 'logs the receiving account');
+      assert.equal(receipt.logs[0].args._value, 200, 'logs the transfer value');
+      return escrowInstance.balanceOf(contractAddress);
+    }).then((balance) => {
+      assert.equal(balance.toNumber(), 0, 'new balance of the contract after payment');
+      return escrowInstance.balanceOf(awardee);
+    }).then((balance) => {
+      assert.equal(balance.toNumber(), 200, 'new balance of the awardee after payment');
+    })
+  })
 });
