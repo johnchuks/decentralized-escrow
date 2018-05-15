@@ -12,7 +12,7 @@ contract ('Escrow', function(accounts){
       return escrowInstance.createContract.call(accounts[2], 'Debug on VScode', 1000000000000000000000000000, { from: accounts[1] });
     }).then(assert.fail).catch((error) => {
       assert(error.message.indexOf('revert') >= 0, 'cannot award contract if both parties don`t have sufficient balance');
-      return escrowInstance.createContract(accounts[2], 'Fix bug on react', 1, { from : accounts[1] });
+      return escrowInstance.createContract(accounts[2], 'Fix bug on react', 100, { from : accounts[1] });
     }).then((receipt) => {
       assert.equal(receipt.logs.length, 1, 'triggers one event');
       assert.equal(receipt.logs[0].event, 'Awarded', 'should trigger an "Awarded" event');
@@ -102,6 +102,34 @@ contract ('Escrow', function(accounts){
       return escrowInstance.balanceOf(awardee);
     }).then((balance) => {
       assert.equal(balance.toNumber(), 200, 'new balance of the awardee after payment');
+    });
+  });
+  it('should end the contract after final payment', function () {
+    return Escrow.deployed().then((instance) => {
+      escrowInstance = instance;
+      return escrowInstance.cancelContract.call(2, {from: accounts[2]});
+    }).then(assert.fail).catch((error) => {
+      assert(error.message.indexOf("revert") >= 0, 'Should fail if contract does not exist');
+      return escrowInstance.cancelContract.call(1, {from: accounts[4]});
+    }).then(assert.fail).catch((error) => {
+      assert(error.message.indexOf('revert') >= 0, 'Should fail if address is not a party to the contract');
+      return escrowInstance.deposit(100, 1, { from: accounts[2] });
+    }).then((receipt) => {
+      return escrowInstance.cancelContract.call(1, { from: accounts[1] });
+    }).then((success) => {
+      assert.equal(success, true);
+      return escrowInstance.cancelContract(1, { from: accounts[1]});
+    }).then((receipt) => {
+      assert.equal(receipt.logs.length, 1, 'Triggers a single event');
+      assert.equal(receipt.logs[0].event, 'Cancel', 'triggers a `Cancel` event');
+      assert.equal(receipt.logs[0].args._from, accounts[1], 'address canceling the contract');
+      assert.equal(receipt.logs[0].args._jobId, 1, 'job to be canceled');
+      return escrowInstance.balanceOf.call(contractAddress);
+    }).then((balance) => {
+      assert.equal(balance.toNumber(), 0, 'updated balance of the contract address');
+      return escrowInstance.balanceOf.call(accounts[2]);
+    }).then((balance) => {
+      assert.equal(balance.toNumber(), 300, 'balance of the depositor');
     })
   })
 });

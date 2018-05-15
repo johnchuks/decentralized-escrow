@@ -118,7 +118,7 @@ contract Escrow {
     }
     
     function cancelContract(uint256 _jobId) public onlyContractParties(_jobId) 
-    onlyExistingContract(_jobId) returns (bool) {
+    onlyExistingContract(_jobId) returns (bool success) {
         bool owner = jobs[_jobId].isDepositedOwner;
         bool executer = jobs[_jobId].isDepositedExecuter;
         if (owner == true && executer == true) {
